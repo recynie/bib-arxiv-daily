@@ -336,10 +336,10 @@ Current cron:
 
 ```yaml
 schedule:
-  - cron: "30 1 * * *"
+  - cron: "30 6 * * *"
 ```
 
-That means the workflow runs at `01:30 UTC` every day.
+That means the workflow runs at `06:30 UTC` every day.
 
 If you want a different time, edit the cron line and commit the change.
 
