@@ -12,16 +12,16 @@ jobs:
       HF_HOME: .hf-cache
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
 
       - name: Cache Hugging Face model files
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .hf-cache
           key: hf-${{ runner.os }}-${{ hashFiles('requirements.txt', 'config.yaml') }}
@@ -29,7 +29,7 @@ jobs:
             hf-${{ runner.os }}-
 
       - name: Cache library embeddings
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .cache/recommender
           key: lib-emb-${{ runner.os }}-${{ hashFiles('requirements.txt', 'config.yaml', 'data/**/*.bib') }}
