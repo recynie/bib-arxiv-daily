@@ -8,6 +8,8 @@ on:
 jobs:
   recommend:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       HF_HOME: .hf-cache
     steps:
@@ -49,6 +51,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}
           git add docs/
           git diff --cached --quiet || git commit -m "Add arXiv recommendations for $(date -u '+%Y-%m-%d')"
           git push
