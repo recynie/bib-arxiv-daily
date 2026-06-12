@@ -1,9 +1,11 @@
 arxiv:
   categories:
-    - nucl-th
-    - nucl-ex
-    - hep-ph
-    - hep-th
+    - cs.AI
+    - cs.LG
+    - cs.CL
+    - cs.NE
+    - q-bio.BM
+    - q-bio.QM
   max_candidates: 100
 
 embedding:
