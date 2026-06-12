@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import html
-import smtplib
 
 from models import ArxivFetchStats, LibraryLoadStats, Recommendation, RecommendationStats
-from settings import SMTPSettings
 
 
 def _truncate(text: str, limit: int = 420) -> str:
@@ -17,11 +13,11 @@ def _truncate(text: str, limit: int = 420) -> str:
     return cleaned[: limit - 3].rstrip() + "..."
 
 
-def build_email_subject(subject_prefix: str, recommendation_count: int, generated_at: datetime) -> str:
-    return f"{subject_prefix} {generated_at:%Y-%m-%d} ({recommendation_count} matches)"
+def build_report_title(recommendation_count: int, generated_at: datetime) -> str:
+    return f"arXiv Daily {generated_at:%Y-%m-%d} ({recommendation_count} matches)"
 
 
-def build_email_html(
+def build_report_html(
     recommendations: list[Recommendation],
     library_stats: LibraryLoadStats,
     fetch_stats: ArxivFetchStats,
@@ -136,25 +132,3 @@ def _wrap_html(content: str) -> str:
         f"{content}"
         "</body></html>"
     )
-
-
-def send_email(subject: str, html_body: str, smtp_settings: SMTPSettings) -> None:
-    message = MIMEMultipart("alternative")
-    message["Subject"] = subject
-    message["From"] = smtp_settings.sender
-    message["To"] = smtp_settings.recipient
-    message.attach(MIMEText("Open this email in an HTML-capable client to view the recommendation list.", "plain", "utf-8"))
-    message.attach(MIMEText(html_body, "html", "utf-8"))
-
-    if smtp_settings.use_ssl:
-        with smtplib.SMTP_SSL(smtp_settings.host, smtp_settings.port, timeout=60) as server:
-            server.login(smtp_settings.username, smtp_settings.password)
-            server.sendmail(smtp_settings.sender, [smtp_settings.recipient], message.as_string())
-        return
-
-    with smtplib.SMTP(smtp_settings.host, smtp_settings.port, timeout=60) as server:
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(smtp_settings.username, smtp_settings.password)
-        server.sendmail(smtp_settings.sender, [smtp_settings.recipient], message.as_string())

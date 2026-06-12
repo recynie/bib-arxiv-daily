@@ -2,22 +2,18 @@
 
 [简体中文说明 / Chinese README](./README.zh-CN.md)
 
-`bib-arxiv-daily` recommends newly announced arXiv papers based on the papers in your local `.bib` files, then sends the results by email on a daily schedule using GitHub Actions. It also includes a manual workflow for a last-7-days top-10 recommendation run, and the same manual mode can be stretched with custom parameters. For example, you can search up to `1000` candidates from the last `99` days and keep the top `50` matches:
+`bib-arxiv-daily` recommends newly announced arXiv papers based on the papers in your local `.bib` files, then publishes the results to GitHub Pages on a daily schedule using GitHub Actions. It also includes a manual workflow for a last-7-days top-10 recommendation run.
 
-```bash
-.venv/bin/python src/main.py --config config.yaml --lookback-days 99 --max-candidates 1000 --max-results 50 --dry-run --output-html output/manual_99day_top50_report.html
-```
+So this project works both as a daily recommender and as a search tool that ranks arXiv papers against your own `.bib` library. For "find papers close to my research taste" style queries, it is often more useful than plain keyword-and-field filtering.
 
-So this project works both as a daily email recommender and as a search tool that ranks arXiv papers against your own `.bib` library. For "find papers close to my research taste" style queries, it is often more useful than plain keyword-and-field filtering.
-
-You can run it locally to generate an HTML report without sending email, or let GitHub Actions run it on schedule and send the results automatically.
+You can run it locally to generate an HTML report, or let GitHub Actions run it on schedule and deploy the results automatically to GitHub Pages.
 
 This repository is designed for beginners:
 
 - You put one or more `.bib` files under `data/`
 - You choose a few arXiv categories in `config.yaml`
 - GitHub Actions runs every day
-- The workflow sends an HTML email with arXiv and PDF links
+- The workflow deploys an HTML page with arXiv and PDF links, and builds a browsable archive of all daily reports
 
 The current version does not use OpenAI, Claude, or any paid LLM API. It uses an open-source embedding model locally on the GitHub Actions runner.
 
@@ -28,11 +24,11 @@ The current version does not use OpenAI, Claude, or any paid LLM API. It uses an
 3. Fetch newly announced arXiv papers from the categories you configured, and fall back to `https://export.arxiv.org/api/query` over the last 24 hours when RSS is temporarily empty
 4. Compute text embeddings for your library papers and the new arXiv candidates
 5. Rank candidates by similarity to your library
-6. Send an HTML email with the top matches
+6. Generate an HTML report and deploy it to GitHub Pages
 
-You can also trigger a manual weekly run that queries arXiv submissions from the last `7` days through the export API and emails the top `10` closest matches.
+You can also trigger a manual weekly run that queries arXiv submissions from the last `7` days through the export API and ranks the top `10` closest matches.
 
-The current email includes:
+Each daily report includes:
 
 - paper title
 - score
@@ -42,20 +38,24 @@ The current email includes:
 - PDF link
 - the closest matching papers from your `.bib` library
 
-The current version does not send PDF attachments. It sends links only.
+All reports are preserved by date under `docs/YYYY/MM/DD/`. The site index page shows the latest report and a full history.
 
 ## Repository Layout
 
 ```text
 .
 ├── data/                     # Put one or more .bib files here
+├── docs/                     # Generated HTML reports (GitHub Pages source)
+│   ├── index.html            # Site index (latest report + history)
+│   └── 2026/06/12/index.html # Daily reports by date
 ├── src/
 │   ├── bib_loader.py
 │   ├── arxiv_fetcher.py
 │   ├── embedder.py
 │   ├── embedding_cache.py
 │   ├── recommender.py
-│   ├── emailer.py
+│   ├── report_builder.py     # HTML report generation
+│   ├── index_builder.py      # Site index generation
 │   └── main.py
 ├── config.yaml               # Non-secret configuration
 ├── requirements.txt
@@ -69,14 +69,11 @@ The current version does not send PDF attachments. It sends links only.
 You need:
 
 - a GitHub repository
-- one email account that is allowed to send mail via SMTP
-- one mailbox that will receive the daily email
 - one or more `.bib` files with abstracts
 
 Important:
 
 - `data/*.bib` is part of the repository contents. If your bibliography is private, do not use a public repository.
-- SMTP passwords, app passwords, and recipient addresses should go into GitHub Actions secrets, not into `config.yaml`, code, screenshots, or issue comments.
 
 ## Quick Start
 
@@ -127,11 +124,6 @@ ranking:
   top_k_neighbors: 5
   max_results: 15
 
-email:
-  subject_prefix: "[arXiv Daily]"
-  include_pdf_links: true
-  send_empty_email: false
-
 runtime:
   data_dir: data
   output_html: output/latest_report.html
@@ -144,75 +136,23 @@ Advice for beginners:
 - Keep `max_candidates` around `50` to `100`
 - Leave the embedding model as default first
 
-## Email Setup: What Must Be Enabled
+## GitHub Pages Setup
 
-This project sends mail using normal SMTP login. That means your sender mailbox must allow SMTP sending.
+### 1. Enable GitHub Pages for the repository
 
-What you usually need to enable:
+Open:
 
-- SMTP service for the sender mailbox
-- an app password or authorization code if your provider uses one
-- SSL or STARTTLS support
+`Settings` -> `Pages`
 
-Common cases:
+Under **Branch**:
 
-### Gmail personal accounts
+- Select `main` branch
+- Select `/docs` folder
+- Click **Save**
 
-Recommended beginner path:
+GitHub will provide a URL like `https://<username>.github.io/<repository>/`.
 
-1. Turn on 2-Step Verification for your Google account
-2. Create an App Password
-3. Use:
-   - `SMTP_HOST=smtp.gmail.com`
-   - `SMTP_PORT=465`
-   - `SMTP_USE_SSL=true`
-   - `SMTP_USER=your_gmail_address`
-   - `SMTP_PASSWORD=your_16_digit_app_password`
-
-Google official references:
-
-- App passwords: https://support.google.com/mail/answer/185833
-- Gmail in other mail clients: https://support.google.com/mail/answer/75726
-
-Note:
-
-- Personal Gmail is usually the easiest Google option for this repository.
-- For Google Workspace accounts, organization policy may require OAuth or restrict app passwords. If you are using a work or school account, ask your admin first.
-
-### Outlook / Microsoft 365
-
-This repository currently uses SMTP username/password style authentication. That is not the best fit for new Microsoft 365 setups.
-
-As of January 27, 2026, Microsoft’s official update says:
-
-- SMTP AUTH Basic Authentication remains unchanged through December 2026
-- it will be disabled by default for existing tenants at the end of December 2026
-- Microsoft will announce the final removal date in the second half of 2027
-
-Official references:
-
-- Updated timeline: https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835
-- Exchange Online SMTP AUTH docs: https://learn.microsoft.com/en-us/Exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-microsoft-365-or-office-365
-
-Practical advice:
-
-- If you are a beginner, Gmail personal, QQ Mail, 163 Mail, or another SMTP provider with an app password is simpler.
-- If you must use Microsoft 365, expect future OAuth work.
-
-### Other providers such as QQ Mail / 163 Mail
-
-The exact UI changes over time, but the pattern is usually:
-
-1. Sign in to webmail
-2. Enable SMTP or POP3/IMAP/SMTP service
-3. Generate an authorization code
-4. Use that authorization code as `SMTP_PASSWORD`
-
-If your provider offers both the login password and a separate authorization code, use the authorization code.
-
-## GitHub Actions Setup: What Must Be Enabled
-
-### 1. Enable GitHub Actions for the repository
+### 2. Enable GitHub Actions for the repository
 
 Open:
 
@@ -221,18 +161,9 @@ Open:
 Recommended settings for beginners:
 
 - `Actions permissions`: `Allow all actions and reusable workflows`
-- `Workflow permissions`: `Read repository contents permission`
+- `Workflow permissions`: `Read and write permissions` (the workflow needs to commit to the repository)
 
-Why this is enough:
-
-- this workflow only needs GitHub-authored actions such as `actions/checkout`, `actions/setup-python`, and `actions/cache`
-- it does not need to write back to the repository
-
-GitHub official docs:
-
-- Repository Actions settings: https://docs.github.com/github/administering-a-repository/managing-repository-settings/disabling-or-limiting-github-actions-for-a-repository
-
-### 2. If this is a fork, enable workflows in the Actions tab
+### 3. If this is a fork, enable workflows in the Actions tab
 
 GitHub official docs say:
 
@@ -251,56 +182,9 @@ GitHub official references:
 - Events in forks: https://docs.github.com/en/actions/reference/events-that-trigger-workflows
 - Disable/enable workflows: https://docs.github.com/actions/managing-workflow-runs/disabling-and-enabling-a-workflow
 
-## Where To Put Private Information
-
-Put private values in:
-
-`Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`
-
-Create these secrets:
-
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASSWORD`
-- `EMAIL_TO`
-
-Optional secrets:
-
-- `EMAIL_FROM`
-- `SMTP_USE_SSL`
-
-Recommended rule:
-
-- If it is a password, token, app password, authorization code, email address, or host you do not want public, put it in `Repository secrets`
-- Keep only non-secret behavior settings in `config.yaml`
-
-Current workflow files:
-
-- [`.github/workflows/daily.yml`](./.github/workflows/daily.yml)
-- [`.github/workflows/manual-weekly-top10.yml`](./.github/workflows/manual-weekly-top10.yml)
-
-Current config file:
-
-- [`config.yaml`](./config.yaml)
-
-## Example Secrets
-
-Example for Gmail personal:
-
-```text
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USER=yourname@gmail.com
-SMTP_PASSWORD=your_16_digit_app_password
-EMAIL_TO=yourname@gmail.com
-EMAIL_FROM=yourname@gmail.com
-SMTP_USE_SSL=true
-```
-
 ## First Manual Test
 
-After you commit your files and secrets:
+After you commit your files:
 
 1. Open the `Actions` tab
 2. Open the `arxiv-daily` workflow
@@ -313,9 +197,14 @@ What to look for in the logs:
 - arXiv papers fetched successfully
 - `Saved ... library embeddings to cache ...` on the first run
 - `Loaded ... library embeddings from cache ...` on later runs
-- email sent successfully
+- `Wrote HTML report to ...`
+- `Rebuilt index page at ...`
 
-If there are no recommendations and `send_empty_email: false`, the workflow can finish successfully without sending an email. That is normal.
+After the run finishes, check:
+
+- The `docs/` directory now contains `YYYY/MM/DD/index.html`
+- Your GitHub Pages URL shows the latest report
+- The index page includes a link to the report
 
 If you want a manual weekly summary instead of the normal daily run:
 
@@ -324,7 +213,7 @@ If you want a manual weekly summary instead of the normal daily run:
 3. Click `Run workflow`
 4. Wait for the run to finish
 
-That workflow is manual-only. It queries the last `7` days of arXiv submissions through the export API, keeps up to `500` candidates, ranks them against your `.bib` library, and emails the top `10` matches.
+That workflow is manual-only. It queries the last `7` days of arXiv submissions through the export API, keeps up to `500` candidates, ranks them against your `.bib` library, and deploys the top `10` matches.
 
 ## Daily Schedule
 
@@ -356,7 +245,7 @@ Current fixed behavior:
 - query arXiv papers submitted in the last `7` days
 - use the export API directly instead of RSS
 - score up to `500` candidates
-- send the top `10` matches by email
+- deploy the top `10` matches
 
 ## Model Used
 
@@ -450,7 +339,7 @@ If you want the simplest path:
 1. Use a private GitHub repository if your bibliography is private
 2. Put only a few `.bib` files under `data/`
 3. Use `2` to `4` arXiv categories
-4. Use Gmail personal with an App Password
+4. Enable GitHub Pages with `/docs` folder
 5. Trigger the workflow manually first
 6. Check that cache hits appear on the second run
 
@@ -461,15 +350,15 @@ If you want to test locally before using GitHub Actions:
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python src/main.py --config config.yaml --dry-run
+.venv/bin/python src/main.py --config config.yaml
 ```
 
-`--dry-run` writes the HTML report but skips SMTP send.
+The HTML report will be written to the path specified in `config.yaml` (default: `output/latest_report.html`).
 
 To reproduce the manual weekly top-10 workflow locally:
 
 ```bash
-.venv/bin/python src/main.py --config config.yaml --lookback-days 7 --max-candidates 500 --max-results 10 --dry-run --output-html output/manual_weekly_top10_report.html
+.venv/bin/python src/main.py --config config.yaml --lookback-days 7 --max-candidates 500 --max-results 10 --output-html output/manual_weekly_top10_report.html
 ```
 
 Useful CLI overrides:
@@ -502,15 +391,14 @@ This repository now handles that gap automatically:
 
 This fallback helps during the RSS propagation lag, but it does not magically create papers on days when arXiv really did not release a new batch.
 
-### No email arrives
+### No report appears on GitHub Pages
 
 Check:
 
 - whether the workflow succeeded
-- whether `send_empty_email` is `false` and no recommendations were found
-- whether SMTP service is enabled on the sender mailbox
-- whether you used the app password or authorization code instead of the normal login password
-- whether the sender mailbox blocks automated sign-in
+- whether GitHub Pages is configured to use the `main` branch `/docs` folder
+- whether the `docs/` directory was committed and pushed
+- whether the Pages build completed (see the Environment section in the repository)
 
 ### Workflow is visible but does not run on schedule
 
@@ -540,14 +428,14 @@ Usually fix this by:
 
 ## Current Limitations
 
-- email uses SMTP login, not OAuth
-- no PDF attachments
-- no HTML artifact upload in the workflow
-- recommendations rely on title + abstract, not full text
+- no PDF attachments (links only)
+- no full-text search (recommendations rely on title + abstract)
 - entries without `abstract` are skipped
 
 ## References
 
+- GitHub Pages docs:
+  https://docs.github.com/en/pages
 - GitHub Actions repository settings:
   https://docs.github.com/github/administering-a-repository/managing-repository-settings/disabling-or-limiting-github-actions-for-a-repository
 - GitHub workflow enable/disable:
@@ -558,11 +446,3 @@ Usually fix this by:
   https://docs.github.com/en/billing/reference/product-usage-included
 - GitHub-hosted runner specs:
   https://docs.github.com/en/actions/reference/github-hosted-runners-reference
-- Gmail app passwords:
-  https://support.google.com/mail/answer/185833
-- Gmail in other email clients:
-  https://support.google.com/mail/answer/75726
-- Microsoft 365 SMTP submission:
-  https://learn.microsoft.com/en-us/Exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-microsoft-365-or-office-365
-- Microsoft SMTP AUTH timeline update:
-  https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835

@@ -2,22 +2,18 @@
 
 [English README](./README.md)
 
-`bib-arxiv-daily` 会根据你放在本仓库中的 `.bib` 文件，去匹配每天新发布的 arXiv 论文，然后通过 GitHub Actions 定时发送推荐邮件。仓库里还提供了一个“最近 7 天 + 最接近 10 篇”的手动工作流，而这套手动模式的参数本身也是可以扩展的。比如，你可以在最近 `99` 天、最多 `1000` 篇候选论文里，筛出最相关的 `50` 篇：
+`bib-arxiv-daily` 会根据你放在本仓库中的 `.bib` 文件，去匹配每天新发布的 arXiv 论文，然后通过 GitHub Actions 每天自动把结果部署到 GitHub Pages。仓库里还提供了一个"最近 7 天 + 最接近 10 篇"的手动工作流。
 
-```bash
-.venv/bin/python src/main.py --config config.yaml --lookback-days 99 --max-candidates 1000 --max-results 50 --dry-run --output-html output/manual_99day_top50_report.html
-```
+所以，这个项目既可以作为一个每天自动推荐相关论文的工具，也可以作为一个基于你自己的 `.bib` 馆藏做语义检索和排序的搜索工具。对于"按研究兴趣找论文"这类场景，它通常会比纯关键词加字段过滤更顺手。
 
-所以，这个项目既可以作为一个每天自动发送相关论文邮件的工具，也可以作为一个基于你自己的 `.bib` 馆藏做语义检索和排序的搜索工具。对于“按研究兴趣找论文”这类场景，它通常会比纯关键词加字段过滤更顺手。(arxiv为关键词加字段匹配, 搜索引擎为关键词加语义检索加排名算法)
+你既可以在本地手动运行、生成 HTML 报告并直接在浏览器里查看，也可以交给 GitHub Actions 每天定时执行并部署到 GitHub Pages。
 
-你既可以在本地手动运行、生成 HTML 报告并直接在浏览器里查看，也可以交给 GitHub Actions 每天定时执行并发送邮件。(也可以本地每日定时运行,了解一下cron)
-
-这个仓库是按“小白可上手”来设计的：
+这个仓库是按"小白可上手"来设计的：
 
 - 你把一个或多个 `.bib` 文件放到 `data/`
 - 你在 `config.yaml` 里配置几个 arXiv 分类
 - GitHub Actions 每天自动运行
-- 工作流把推荐结果以 HTML 邮件发到你的邮箱
+- 工作流把推荐结果部署到 GitHub Pages，所有历史按日期保留
 
 当前版本不使用 OpenAI、Claude 或任何付费大模型 API。它在 GitHub Actions 运行器上本地调用开源 embedding 模型。
 
@@ -28,11 +24,11 @@
 3. 优先抓取你配置的 arXiv 分类 RSS；如果 RSS 临时为空，则退回到 `https://export.arxiv.org/api/query` 查询最近 `24` 小时提交的论文
 4. 计算你的馆藏论文和候选论文的文本向量
 5. 根据相似度排序
-6. 发送 HTML 推荐邮件
+6. 生成 HTML 报告并部署到 GitHub Pages
 
-你也可以手动触发一个周报流程：直接查询最近 `7` 天提交到 arXiv 的论文，筛出最接近你 bib 库的前 `10` 篇并发送邮件。
+你也可以手动触发一个周报流程：直接查询最近 `7` 天提交到 arXiv 的论文，筛出最接近你 bib 库的前 `10` 篇并部署。
 
-当前邮件内容包括：
+每篇日报包含：
 
 - 论文标题
 - 相似度分数
@@ -42,20 +38,24 @@
 - PDF 链接
 - 与你 bib 库最接近的几篇论文标题
 
-当前版本不发送 PDF 附件，只发送 PDF 链接。
+所有报告按日期保存在 `docs/YYYY/MM/DD/` 下，站点首页展示最新报告和完整历史。
 
 ## 仓库结构
 
 ```text
 .
 ├── data/                     # 把一个或多个 .bib 文件放这里
+├── docs/                     # 生成的 HTML 报告（GitHub Pages 源）
+│   ├── index.html            # 站点首页（最新报告 + 历史列表）
+│   └── 2026/06/12/index.html # 按日期保存的日报
 ├── src/
 │   ├── bib_loader.py
 │   ├── arxiv_fetcher.py
 │   ├── embedder.py
 │   ├── embedding_cache.py
 │   ├── recommender.py
-│   ├── emailer.py
+│   ├── report_builder.py     # HTML 报告生成
+│   ├── index_builder.py      # 站点首页生成
 │   └── main.py
 ├── config.yaml               # 非私密配置
 ├── requirements.txt
@@ -69,14 +69,11 @@
 你需要：
 
 - 一个 GitHub 仓库
-- 一个可以通过 SMTP 发信的邮箱
-- 一个接收推荐结果的邮箱
 - 一个或多个带摘要的 `.bib` 文件
 
 重要提醒：
 
 - `data/*.bib` 会作为仓库内容提交到 Git 历史里。如果你的书目库是私密的，不要放在公开仓库里。
-- SMTP 密码、应用专用密码、授权码、收件人邮箱，不要放进 `config.yaml`、代码、截图、issue 或日志里。
 
 ## 快速开始
 
@@ -125,11 +122,6 @@ ranking:
   top_k_neighbors: 5
   max_results: 15
 
-email:
-  subject_prefix: "[arXiv Daily]"
-  include_pdf_links: true
-  send_empty_email: false
-
 runtime:
   data_dir: data
   output_html: output/latest_report.html
@@ -142,77 +134,23 @@ runtime:
 - `max_candidates` 先控制在 `50` 到 `100`
 - embedding 模型先不要改，先跑通默认值
 
-## 邮件怎么开通：必须打开什么
+## GitHub Pages 设置
 
-这个项目当前使用的是普通 SMTP 登录发信，所以你的发件邮箱必须支持 SMTP 发信。
+### 1. 为仓库启用 GitHub Pages
 
-通常需要开启的内容：
+打开：
 
-- SMTP 服务
-- 应用专用密码或授权码
-- SSL 或 STARTTLS
+`Settings` -> `Pages`
 
-常见情况如下。
+在 **Branch** 部分：
 
-### Gmail 个人账号
+- 选择 `main` 分支
+- 选择 `/docs` 文件夹
+- 点击 **Save**
 
-对新手最友好的做法：
+GitHub 会提供一个像 `https://<用户名>.github.io/<仓库名>/` 这样的 URL。
 
-1. 给 Google 账号开启两步验证
-2. 创建 App Password（应用专用密码）
-3. 使用下面这组参数：
-   - `SMTP_HOST=smtp.gmail.com`
-   - `SMTP_PORT=465`
-   - `SMTP_USE_SSL=true`
-   - `SMTP_USER=你的 Gmail 地址`
-   - `SMTP_PASSWORD=你的 16 位应用专用密码`
-
-Google 官方文档：
-
-- App Passwords: https://support.google.com/mail/answer/185833
-- Gmail 接入第三方邮件客户端: https://support.google.com/mail/answer/75726
-
-注意：
-
-- 个人 Gmail 往往是这个仓库最省心的选项。
-- 如果你用的是 Google Workspace（公司/学校账号），管理员策略可能要求 OAuth，或者限制应用专用密码。先问管理员。
-
-### Outlook / Microsoft 365
-
-这个仓库当前用的是 SMTP 用户名/密码式登录。对于新的 Microsoft 365 场景，这并不是最稳妥的路线。
-
-按微软 2026-01-27 的官方更新时间线：
-
-- 到 `2026 年 12 月` 前，SMTP AUTH Basic Authentication 行为保持不变
-- 到 `2026 年 12 月底`，现有租户会默认禁用它
-- 最终彻底移除日期将在 `2027 年下半年` 再公布
-
-微软官方参考：
-
-- 时间线更新：
-  https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835
-- Microsoft 365 SMTP 文档：
-  https://learn.microsoft.com/en-us/Exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-microsoft-365-or-office-365
-
-实际建议：
-
-- 如果你是小白，优先选 Gmail 个人邮箱、QQ 邮箱、163 邮箱，或者任何支持授权码的 SMTP 邮箱。
-- 如果你必须用 Microsoft 365，后面很可能需要改成 OAuth 方案。
-
-### QQ 邮箱 / 163 邮箱 / 其他邮箱
-
-具体页面会变，但大体流程通常是：
-
-1. 登录网页版邮箱
-2. 开启 SMTP 或 POP3/IMAP/SMTP 服务
-3. 生成授权码
-4. 用这个授权码填 `SMTP_PASSWORD`
-
-如果邮箱同时给你“登录密码”和“授权码”两个选项，应该优先用授权码，不要直接用网页登录密码。
-
-## GitHub Actions 要开哪些东西
-
-### 1. 在仓库里启用 GitHub Actions
+### 2. 启用 GitHub Actions
 
 打开：
 
@@ -221,19 +159,9 @@ Google 官方文档：
 给新手的推荐设置：
 
 - `Actions permissions`: 选择 `Allow all actions and reusable workflows`
-- `Workflow permissions`: 选择 `Read repository contents permission`
+- `Workflow permissions`: 选择 `Read and write permissions`（工作流需要提交代码到仓库）
 
-为什么这样够用：
-
-- 当前工作流只用到了 GitHub 官方动作：`actions/checkout`、`actions/setup-python`、`actions/cache`
-- 它不需要把结果写回仓库
-
-GitHub 官方文档：
-
-- 仓库级 Actions 设置：
-  https://docs.github.com/github/administering-a-repository/managing-repository-settings/disabling-or-limiting-github-actions-for-a-repository
-
-### 2. 如果这是 fork 出来的仓库，要在 Actions 页面手动启用工作流
+### 3. 如果这是 fork 出来的仓库，要在 Actions 页面手动启用工作流
 
 GitHub 官方文档说明：
 
@@ -254,56 +182,9 @@ GitHub 官方参考：
 - 工作流启用/禁用：
   https://docs.github.com/actions/managing-workflow-runs/disabling-and-enabling-a-workflow
 
-## 私密信息应该放哪里
-
-放到：
-
-`Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`
-
-请创建这些 secrets：
-
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASSWORD`
-- `EMAIL_TO`
-
-可选 secrets：
-
-- `EMAIL_FROM`
-- `SMTP_USE_SSL`
-
-推荐规则：
-
-- 只要是密码、token、应用专用密码、授权码、邮箱地址、你不想公开的主机名，都放进 `Repository secrets`
-- `config.yaml` 里只保留不敏感的行为配置
-
-当前工作流文件：
-
-- [`.github/workflows/daily.yml`](./.github/workflows/daily.yml)
-- [`.github/workflows/manual-weekly-top10.yml`](./.github/workflows/manual-weekly-top10.yml)
-
-当前配置文件：
-
-- [`config.yaml`](./config.yaml)
-
-## Secrets 示例
-
-Gmail 个人账号示例：
-
-```text
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USER=yourname@gmail.com
-SMTP_PASSWORD=your_16_digit_app_password
-EMAIL_TO=yourname@gmail.com
-EMAIL_FROM=yourname@gmail.com
-SMTP_USE_SSL=true
-```
-
 ## 第一次手动测试怎么做
 
-把文件和 secrets 都准备好后：
+把文件都准备好后：
 
 1. 打开 `Actions`
 2. 打开 `arxiv-daily` 这个 workflow
@@ -316,9 +197,14 @@ SMTP_USE_SSL=true
 - arXiv 是否成功抓取
 - 第一次运行会出现 `Saved ... library embeddings to cache ...`
 - 后续运行会出现 `Loaded ... library embeddings from cache ...`
-- 邮件是否成功发送
+- `Wrote HTML report to ...`
+- `Rebuilt index page at ...`
 
-如果没有推荐结果，而且 `send_empty_email: false`，那工作流可以成功结束但不发邮件，这是正常行为。
+跑完之后检查：
+
+- `docs/` 目录下生成了 `YYYY/MM/DD/index.html`
+- 你的 GitHub Pages 页面显示了最新的报告
+- 首页包含指向该报告的链接
 
 如果你想跑一次手动周报，而不是普通的日更流程：
 
@@ -327,7 +213,7 @@ SMTP_USE_SSL=true
 3. 点击 `Run workflow`
 4. 等它跑完
 
-这个工作流只支持手动触发。它会直接使用 export API 查询最近 `7` 天的 arXiv 提交，最多打分 `500` 篇候选论文，并发送最接近的 `10` 篇。
+这个工作流只支持手动触发。它会直接使用 export API 查询最近 `7` 天的 arXiv 提交，最多打分 `500` 篇候选论文，并部署最接近的 `10` 篇。
 
 ## 每天什么时候运行
 
@@ -342,7 +228,7 @@ schedule:
   - cron: "30 6 * * *"
 ```
 
-这表示每天 `06:30 UTC` 运行一次。 也就是北京时间下午14:30.
+这表示每天 `06:30 UTC` 运行一次。也就是北京时间下午 14:30。
 
 如果你想改时间，直接修改 cron 后提交即可。
 
@@ -359,7 +245,7 @@ schedule:
 - 查询最近 `7` 天提交的 arXiv 论文
 - 直接走 export API，不依赖 RSS 当日公告
 - 最多打分 `500` 篇候选论文
-- 邮件发送最接近的前 `10` 篇
+- 部署最接近的前 `10` 篇
 
 ## 当前使用的模型
 
@@ -456,7 +342,7 @@ GitHub 官方参考：
 1. 如果书目是私密的，就用 private 仓库
 2. 先只放少量 `.bib` 文件到 `data/`
 3. 先选 `2` 到 `4` 个 arXiv 分类
-4. 用 Gmail 个人邮箱 + App Password
+4. 配置 GitHub Pages 使用 `/docs` 文件夹
 5. 先手动触发一次 workflow
 6. 第二次运行时确认日志里出现 cache hit
 
@@ -467,15 +353,15 @@ GitHub 官方参考：
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python src/main.py --config config.yaml --dry-run
+.venv/bin/python src/main.py --config config.yaml
 ```
 
-`--dry-run` 会生成 HTML 报告，但不会真正发邮件。
+HTML 报告会输出到 `config.yaml` 中 `runtime.output_html` 指定的路径（默认 `output/latest_report.html`）。
 
-如果你想在本地复现“手动周报 top 10”流程，可以运行：
+如果你想在本地复现"手动周报 top 10"流程，可以运行：
 
 ```bash
-.venv/bin/python src/main.py --config config.yaml --lookback-days 7 --max-candidates 500 --max-results 10 --dry-run --output-html output/manual_weekly_top10_report.html
+.venv/bin/python src/main.py --config config.yaml --lookback-days 7 --max-candidates 500 --max-results 10 --output-html output/manual_weekly_top10_report.html
 ```
 
 几个有用的 CLI 覆盖参数：
@@ -511,15 +397,14 @@ python3 -m venv .venv
 
 这个兜底可以覆盖 announcement 已出、RSS 还没刷新的那段空白时间；但如果周末确实没有新论文批次，它也不会凭空产生结果。
 
-### 没收到邮件
+### GitHub Pages 上没有显示报告
 
 请检查：
 
 - workflow 是否成功
-- 是否因为 `send_empty_email: false` 且当天没有推荐结果
-- 发件邮箱是否开启了 SMTP
-- 你填的是应用专用密码/授权码，而不是网页登录密码
-- 发件邮箱是否拦截了自动化登录
+- GitHub Pages 是否配置为使用 `main` 分支的 `/docs` 文件夹
+- `docs/` 目录是否被提交并推送到了仓库
+- Pages 构建是否完成（在仓库的 Environment 部分查看）
 
 ### Workflow 能看到但不会定时跑
 
@@ -549,14 +434,14 @@ python3 -m venv .venv
 
 ## 当前限制
 
-- 邮件还是 SMTP 登录，不是 OAuth
-- 不发送 PDF 附件
-- workflow 还没有上传 HTML artifact
+- 不发送 PDF 附件（只发链接）
 - 推荐只基于标题 + 摘要，不是全文
 - 没有 `abstract` 的条目会被跳过
 
 ## 参考资料
 
+- GitHub Pages 文档：
+  https://docs.github.com/en/pages
 - GitHub Actions 仓库设置：
   https://docs.github.com/github/administering-a-repository/managing-repository-settings/disabling-or-limiting-github-actions-for-a-repository
 - GitHub workflow 启用/禁用：
@@ -567,11 +452,3 @@ python3 -m venv .venv
   https://docs.github.com/en/billing/reference/product-usage-included
 - GitHub-hosted runner 规格：
   https://docs.github.com/en/actions/reference/github-hosted-runners-reference
-- Gmail App Passwords：
-  https://support.google.com/mail/answer/185833
-- Gmail 第三方客户端接入：
-  https://support.google.com/mail/answer/75726
-- Microsoft 365 SMTP 文档：
-  https://learn.microsoft.com/en-us/Exchange/mail-flow-best-practices/how-to-set-up-a-multifunction-device-or-application-to-send-email-using-microsoft-365-or-office-365
-- Microsoft SMTP AUTH 时间线更新：
-  https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835

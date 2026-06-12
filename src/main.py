@@ -10,10 +10,11 @@ import time
 from arxiv_fetcher import ArxivFetcher
 from bib_loader import load_library
 from embedding_cache import LibraryEmbeddingCache
-from emailer import build_email_html, build_email_subject, send_email
 from embedder import SentenceTransformerEmbedder
+from index_builder import build_index_html
 from recommender import Recommender
-from settings import load_settings, load_smtp_settings
+from report_builder import build_report_html
+from settings import load_settings
 
 
 LOGGER = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ LOGGER = logging.getLogger(__name__)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Recommend new arXiv papers from local bib files.")
     parser.add_argument("--config", default="config.yaml", help="Path to YAML configuration file.")
-    parser.add_argument("--dry-run", action="store_true", help="Build the report but do not send email.")
+
     parser.add_argument(
         "--lookback-days",
         type=int,
@@ -39,7 +40,7 @@ def parse_args() -> argparse.Namespace:
         "--max-results",
         type=int,
         default=None,
-        help="Optional override for the number of recommendations included in the email.",
+        help="Optional override for the number of recommendations included in the report.",
     )
     parser.add_argument(
         "--output-html",
@@ -122,12 +123,12 @@ def main() -> int:
     )
 
     generated_at = datetime.now(timezone.utc)
-    html_body = build_email_html(
+    html_body = build_report_html(
         recommendations=recommendations,
         library_stats=library_stats,
         fetch_stats=fetch_stats,
         recommendation_stats=recommendation_stats,
-        include_pdf_links=settings.email.include_pdf_links,
+        include_pdf_links=True,
         generated_at=generated_at,
     )
 
@@ -136,22 +137,13 @@ def main() -> int:
     output_html.write_text(html_body, encoding="utf-8")
     LOGGER.info("Wrote HTML report to %s", output_html)
 
-    if not recommendations and not settings.email.send_empty_email:
-        LOGGER.info("No recommendations found; skipping email because send_empty_email is disabled")
-        return 0
+    # Rebuild the index page if the output is under docs/
+    docs_dir = output_html.parent.parent.parent  # docs/YYYY/MM/DD → docs/
+    if docs_dir.name == "docs" and docs_dir.is_dir():
+        index_html = build_index_html(docs_dir)
+        (docs_dir / "index.html").write_text(index_html, encoding="utf-8")
+        LOGGER.info("Rebuilt index page at %s", docs_dir / "index.html")
 
-    if args.dry_run:
-        LOGGER.info("Dry-run mode enabled; skipping SMTP send")
-        return 0
-
-    smtp_settings = load_smtp_settings()
-    subject = build_email_subject(
-        subject_prefix=settings.email.subject_prefix,
-        recommendation_count=len(recommendations),
-        generated_at=generated_at,
-    )
-    send_email(subject, html_body, smtp_settings)
-    LOGGER.info("Sent recommendation email to %s", smtp_settings.recipient)
     return 0
 
 

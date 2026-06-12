@@ -11,12 +11,12 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from emailer import build_email_html
+from report_builder import build_report_html
 from models import ArxivFetchStats, CandidatePaper, LibraryLoadStats, NeighborMatch, Recommendation, RecommendationStats
 
 
-class EmailerTest(unittest.TestCase):
-    def test_build_email_html_includes_pdf_link_and_neighbor_titles(self) -> None:
+class ReportBuilderTest(unittest.TestCase):
+    def test_build_report_html_includes_pdf_link_and_neighbor_titles(self) -> None:
         recommendation = Recommendation(
             candidate=CandidatePaper(
                 title="Graph Signal Learning",
@@ -53,7 +53,7 @@ class EmailerTest(unittest.TestCase):
             final_recommendation_count=1,
         )
 
-        html = build_email_html(
+        html = build_report_html(
             [recommendation],
             library_stats=stats,
             fetch_stats=fetch_stats,
@@ -70,7 +70,7 @@ class EmailerTest(unittest.TestCase):
         self.assertIn("After dedupe / already-in-library filter:", html)
         self.assertIn("Threshold filtered:", html)
 
-    def test_build_email_html_shows_lookback_window_for_manual_weekly_run(self) -> None:
+    def test_build_report_html_shows_lookback_window_for_manual_weekly_run(self) -> None:
         stats = LibraryLoadStats(
             files_scanned=2,
             entries_total=10,
@@ -93,7 +93,7 @@ class EmailerTest(unittest.TestCase):
             final_recommendation_count=0,
         )
 
-        html = build_email_html(
+        html = build_report_html(
             [],
             library_stats=stats,
             fetch_stats=fetch_stats,
