@@ -45,6 +45,9 @@ jobs:
       - name: Generate weekly report
         run: python src/main.py --config config.yaml --lookback-days 7 --max-candidates 500 --max-results 10 --output-html "docs/weekly/$(date -u '+%Y/%m/%d')/index.html"
 
+      - name: Rebuild index page
+        run: python -c "from pathlib import Path; from index_builder import build_index_html; Path('docs/index.html').write_text(build_index_html(Path('docs')), encoding='utf-8')"
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"

@@ -138,10 +138,13 @@ def main() -> int:
     LOGGER.info("Wrote HTML report to %s", output_html)
 
     # Rebuild the index page if the output is under docs/
-    docs_dir = output_html.parent.parent.parent  # docs/YYYY/MM/DD → docs/
+    docs_dir = output_html.parent
+    while docs_dir.parent.name != "" and docs_dir.name != "docs":
+        docs_dir = docs_dir.parent
     if docs_dir.name == "docs" and docs_dir.is_dir():
         index_html = build_index_html(docs_dir)
         (docs_dir / "index.html").write_text(index_html, encoding="utf-8")
+        LOGGER.info("Rebuilt index page at %s", docs_dir / "index.html")
         LOGGER.info("Rebuilt index page at %s", docs_dir / "index.html")
 
     return 0
