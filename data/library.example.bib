@@ -1,0 +1,30 @@
+% =============================================================================
+% example.bib — Example BibTeX library for bib-arxiv-daily
+%
+% Replace these entries with your own papers to build a personalized
+% arXiv recommendation pipeline. The recommender reads ALL .bib files
+% in data/ to find library papers and recommends new arXiv submissions
+% that are semantically similar to them.
+% =============================================================================
+
+%% ---- Example entries ---- %%
+
+@article{key2023example,
+  author    = {Author, First and Researcher, Second},
+  title     = {An Example Paper Title for the Library},
+  journal   = {Journal of Machine Learning Research},
+  year      = {2023},
+  volume    = {42},
+  number    = {1},
+  pages     = {1--15},
+  abstract  = {This is an example abstract. Replace this with your own papers to bootstrap the arXiv recommendation pipeline.},
+  keywords  = {example, template}
+}
+
+@inproceedings{sample2022conference,
+  author    = {Scientist, A. and Engineer, B.},
+  title     = {Sample Conference Paper for Demonstration Purposes},
+  booktitle = {Proceedings of the International Conference on Machine Learning (ICML)},
+  year      = {2022},
+  abstract  = {Another example entry. The recommender uses abstracts to compute semantic embeddings, so including abstracts in your library entries improves recommendation quality.},
+}

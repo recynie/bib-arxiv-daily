@@ -82,7 +82,7 @@
 支持多个 `.bib` 文件，例如：
 
 ```text
-data/library.bib
+data/library.example.bib
 data/reading/ml.bib
 data/reading/vision.bib
 ```

@@ -84,7 +84,9 @@ This project supports multiple `.bib` files.
 Examples:
 
 ```text
+data/library.example.bib
 data/library.bib
+  # ⚠ private — see .gitignore
 data/reading/ml.bib
 data/reading/vision.bib
 ```

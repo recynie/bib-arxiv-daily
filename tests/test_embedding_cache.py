@@ -35,13 +35,13 @@ class EmbeddingCacheTest(unittest.TestCase):
             LibraryPaper(
                 title="Graph Neural Networks",
                 abstract="Message passing for graph data.",
-                source_file="data/library.bib",
+                source_file="data/library.example.bib",
                 doi="10.1000/gnn",
             ),
             LibraryPaper(
                 title="Vision Transformers",
                 abstract="Transformer architectures for image recognition.",
-                source_file="data/library.bib",
+                source_file="data/library.example.bib",
             ),
         ]
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -60,7 +60,7 @@ class EmbeddingCacheTest(unittest.TestCase):
             LibraryPaper(
                 title="Graph Neural Networks",
                 abstract="Message passing for graph data.",
-                source_file="data/library.bib",
+                source_file="data/library.example.bib",
             )
         ]
         modified = [
