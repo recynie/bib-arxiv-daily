@@ -6,7 +6,7 @@ arxiv:
     - cs.NE
     - q-bio.BM
     - q-bio.QM
-  max_candidates: 100
+  max_candidates: 400
 
 embedding:
   model: BAAI/bge-small-en-v1.5
