@@ -73,7 +73,8 @@ You need:
 
 Important:
 
-- `data/*.bib` is part of the repository contents. If your bibliography is private, do not use a public repository.
+- `data/library.bib` is listed in `.gitignore` and will **not** be committed to Git. In CI (GitHub Actions), its content is restored from a repository secret.
+- Other `.bib` files you add under `data/` will be tracked by Git. If you have private bibliographies, keep them in a private repository or add them to `.gitignore`.
 
 ## Quick Start
 
@@ -84,10 +85,9 @@ This project supports multiple `.bib` files.
 Examples:
 
 ```text
-data/library.example.bib
-data/library.bib
-  # ⚠ private — see .gitignore
-data/reading/ml.bib
+data/library.example.bib        # Example file, tracked by Git
+data/library.bib                # Your personal library, NOT tracked (see .gitignore)
+data/reading/ml.bib             # You can add more .bib files manually
 data/reading/vision.bib
 ```
 
@@ -103,6 +103,9 @@ Minimal working BibTeX entry:
 ```
 
 If an entry does not contain an `abstract`, it is skipped.
+
+> **Note for CI users:** `data/library.bib` is ignored by Git. In GitHub Actions, its content is restored from the `LIBRARY_BIB` repository secret.
+> See [GitHub Actions Configuration](#3-github-actions-configuration-secret-setup) below to set it up.
 
 ### 2. Edit `config.yaml`
 
@@ -184,9 +187,34 @@ GitHub official references:
 - Events in forks: https://docs.github.com/en/actions/reference/events-that-trigger-workflows
 - Disable/enable workflows: https://docs.github.com/actions/managing-workflow-runs/disabling-and-enabling-a-workflow
 
+### 3. GitHub Actions Configuration (Secret Setup)
+
+Because `data/library.bib` is not tracked by Git (see `.gitignore`), CI workflows need its content provided via a **GitHub repository secret**.
+
+#### Step 1: Copy your library.bib content
+
+```bash
+cat data/library.bib | pbcopy   # macOS
+# or
+cat data/library.bib            # Linux — then select and copy the output
+```
+
+#### Step 2: Add the secret
+
+1. Go to your GitHub repository page
+2. **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. **Name**: `LIBRARY_BIB`
+5. **Secret**: Paste the full content of your `data/library.bib`
+6. Click **Add secret**
+
+That is all. When the workflows run, they will restore this secret into `data/library.bib` before executing the main program.
+
+> If `LIBRARY_BIB` is not set, the workflow falls back to `data/library.example.bib` so the pipeline does not break.
+
 ## First Manual Test
 
-After you commit your files:
+After you commit your files and set up the secret:
 
 1. Open the `Actions` tab
 2. Open the `arxiv-daily` workflow
@@ -195,7 +223,8 @@ After you commit your files:
 
 What to look for in the logs:
 
-- library loaded successfully
+- `Restored library.bib` appears early in the run
+- `library loaded successfully`
 - arXiv papers fetched successfully
 - `Saved ... library embeddings to cache ...` on the first run
 - `Loaded ... library embeddings from cache ...` on later runs

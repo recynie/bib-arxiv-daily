@@ -73,7 +73,8 @@
 
 重要提醒：
 
-- `data/*.bib` 会作为仓库内容提交到 Git 历史里。如果你的书目库是私密的，不要放在公开仓库里。
+- `data/library.bib` 已在 `.gitignore` 中，不会被提交到 Git。CI（GitHub Actions）中会通过仓库 secret 恢复到文件系统。
+- 你在 `data/` 下添加的其他 `.bib` 文件默认会被 Git 跟踪。如有私密书目，请使用 private 仓库或将其加入 `.gitignore`。
 
 ## 快速开始
 
@@ -82,10 +83,14 @@
 支持多个 `.bib` 文件，例如：
 
 ```text
-data/library.example.bib
-data/reading/ml.bib
+data/library.example.bib        # 示例文件，被 Git 跟踪
+data/library.bib                # 你的个人论文库，不被 Git 跟踪（见 .gitignore）
+data/reading/ml.bib             # 你可以手动添加更多 .bib 文件
 data/reading/vision.bib
 ```
+
+> **CI 用户注意：** `data/library.bib` 被 Git 忽略。在 GitHub Actions 中，它的内容会从 `LIBRARY_BIB` 仓库 secret 恢复。
+> 详见下方 [GitHub Actions 配置（Secret 设置）](#3-github-actions-配置secret-设置)。
 
 最小可用的 BibTeX 示例：
 
@@ -182,9 +187,34 @@ GitHub 官方参考：
 - 工作流启用/禁用：
   https://docs.github.com/actions/managing-workflow-runs/disabling-and-enabling-a-workflow
 
+### 3. GitHub Actions 配置（Secret 设置）
+
+由于 `data/library.bib` 不被 Git 跟踪（见 `.gitignore`），CI 工作流需要将它的内容通过 **GitHub 仓库 secret** 提供。
+
+#### 第一步：复制你的 library.bib 内容
+
+```bash
+cat data/library.bib | pbcopy   # macOS
+# 或
+cat data/library.bib            # Linux — 选中并复制输出
+```
+
+#### 第二步：添加 secret
+
+1. 打开你的 GitHub 仓库页面
+2. **Settings** → **Secrets and variables** → **Actions**
+3. 点击 **New repository secret**
+4. **Name**：`LIBRARY_BIB`
+5. **Secret**：粘贴 `data/library.bib` 的完整内容
+6. 点击 **Add secret**
+
+完成。工作流运行时会在执行主程序前将 secret 恢复为 `data/library.bib`。
+
+> 如果 `LIBRARY_BIB` 未设置，工作流会自动使用 `data/library.example.bib` 作为兜底，避免流水线中断。
+
 ## 第一次手动测试怎么做
 
-把文件都准备好后：
+把文件都准备好并设置好 secret 后：
 
 1. 打开 `Actions`
 2. 打开 `arxiv-daily` 这个 workflow
@@ -193,7 +223,8 @@ GitHub 官方参考：
 
 日志里重点看这些信息：
 
-- bib 库是否成功加载
+- 早期出现 `Restored library.bib` 表示 secret 恢复成功
+- `library loaded successfully`
 - arXiv 是否成功抓取
 - 第一次运行会出现 `Saved ... library embeddings to cache ...`
 - 后续运行会出现 `Loaded ... library embeddings from cache ...`
