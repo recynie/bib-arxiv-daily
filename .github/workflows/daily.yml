@@ -16,6 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Restore library.bib from secret
+        run: |
+          if [ -n "${{ secrets.LIBRARY_BIB }}" ]; then
+            mkdir -p data
+            echo "${{ secrets.LIBRARY_BIB }}" > data/library.bib
+            echo "Restored library.bib ($(wc -c < data/library.bib) bytes)"
+          else
+            echo "No LIBRARY_BIB secret set; using example file"
+            cp data/library.example.bib data/library.bib 2>/dev/null || true
+          fi
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
