@@ -18,12 +18,12 @@ jobs:
 
       - name: Restore library.bib from secret
         run: |
-          if [ -n "${{ secrets.LIBRARY_BIB }}" ]; then
+          if [ -n "${{ secrets.LIBRARY_BIB_BASE64 }}" ]; then
             mkdir -p data
-            echo "${{ secrets.LIBRARY_BIB }}" > data/library.bib
+            echo "${{ secrets.LIBRARY_BIB_BASE64 }}" | base64 -d > data/library.bib
             echo "Restored library.bib ($(wc -c < data/library.bib) bytes)"
           else
-            echo "No LIBRARY_BIB secret set; using example file"
+            echo "No LIBRARY_BIB_BASE64 secret set; using example file"
             cp data/library.example.bib data/library.bib 2>/dev/null || true
           fi
 

@@ -48,6 +48,8 @@
 ├── docs/                     # 生成的 HTML 报告（GitHub Pages 源）
 │   ├── index.html            # 站点首页（最新报告 + 历史列表）
 │   └── 2026/06/12/index.html # 按日期保存的日报
+├── scripts/
+│   └── clean_bib.py          # 将 bib 条目清洗为项目实际使用的字段
 ├── src/
 │   ├── bib_loader.py
 │   ├── arxiv_fetcher.py
@@ -89,19 +91,20 @@ data/reading/ml.bib             # 你可以手动添加更多 .bib 文件
 data/reading/vision.bib
 ```
 
-> **CI 用户注意：** `data/library.bib` 被 Git 忽略。在 GitHub Actions 中，它的内容会从 `LIBRARY_BIB` 仓库 secret 恢复。
+> **CI 用户注意：** `data/library.bib` 被 Git 忽略。在 GitHub Actions 中，它的内容会从 `LIBRARY_BIB_BASE64` 仓库 secret 恢复（base64 编码后的 bib 文件内容）。
 > 详见下方 [GitHub Actions 配置（Secret 设置）](#3-github-actions-配置secret-设置)。
 
 最小可用的 BibTeX 示例：
 
 ```bibtex
 @article{attention2023,
-  title = {A Paper Title},
-  abstract = {This abstract is required for similarity matching.},
-  author = {Alice Example and Bob Example},
-  year = {2023}
+  title   = {A Paper Title},
+  abstract = {This abstract is required for similarity matching.}
 }
 ```
+
+项目只会读取 bib 条目中的 `title`、`abstract`、`author`、`doi`、`eprint`、`archiveprefix` 和 `url` 这几个字段。
+`year`、`journal`、`volume`、`pages`、`keywords`、`file`、`publisher`、`urldate` 等字段**完全被忽略**。
 
 如果某个条目没有 `abstract`，当前版本会直接跳过。
 
@@ -191,26 +194,30 @@ GitHub 官方参考：
 
 由于 `data/library.bib` 不被 Git 跟踪（见 `.gitignore`），CI 工作流需要将它的内容通过 **GitHub 仓库 secret** 提供。
 
-#### 第一步：复制你的 library.bib 内容
+#### 第一步：将 library.bib 编码为 base64
 
 ```bash
-cat data/library.bib | pbcopy   # macOS
+base64 -w0 data/library.bib | pbcopy   # macOS
 # 或
-cat data/library.bib            # Linux — 选中并复制输出
+base64 -w0 data/library.bib            # Linux — 选中并复制输出
 ```
+
+> `-w0` 参数保证输出为单行 base64 字符串，作为 GitHub secret 最可靠。
 
 #### 第二步：添加 secret
 
 1. 打开你的 GitHub 仓库页面
 2. **Settings** → **Secrets and variables** → **Actions**
 3. 点击 **New repository secret**
-4. **Name**：`LIBRARY_BIB`
-5. **Secret**：粘贴 `data/library.bib` 的完整内容
+4. **Name**：`LIBRARY_BIB_BASE64`
+5. **Secret**：粘贴上一步得到的 base64 编码结果
 6. 点击 **Add secret**
 
-完成。工作流运行时会在执行主程序前将 secret 恢复为 `data/library.bib`。
+完成。工作流运行时会将此 base64 secret 解码为 `data/library.bib`。
 
-> 如果 `LIBRARY_BIB` 未设置，工作流会自动使用 `data/library.example.bib` 作为兜底，避免流水线中断。
+> 如果 `LIBRARY_BIB_BASE64` 未设置，工作流会自动使用 `data/library.example.bib` 作为兜底。
+
+> **注意：** 如果你之前添加了 `LIBRARY_BIB`（纯文本），可以删除它了，已不再使用。
 
 ## 第一次手动测试怎么做
 
@@ -462,6 +469,17 @@ HTML 报告会输出到 `config.yaml` 中 `runtime.output_html` 指定的路径�
 - 降低 `max_candidates`
 - 清理质量较差的 `.bib` 条目
 - 去掉没有有效摘要的条目
+
+### 可选：清洗 bib 文件
+
+项目提供了一个工具脚本，可以把 bib 条目精简到项目实际使用的字段：
+
+```bash
+python scripts/clean_bib.py data/library.bib        # 原地替换
+python scripts/clean_bib.py data/library.bib -o clean.bib  # 安全模式
+```
+
+这将删除 `year`、`journal`、`keywords`、`file`、`urldate` 等嵌入和推荐流程从不读取的字段。
 
 ## 当前限制
 

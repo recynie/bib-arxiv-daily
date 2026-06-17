@@ -48,6 +48,8 @@ All reports are preserved by date under `docs/YYYY/MM/DD/`. The site index page 
 ├── docs/                     # Generated HTML reports (GitHub Pages source)
 │   ├── index.html            # Site index (latest report + history)
 │   └── 2026/06/12/index.html # Daily reports by date
+├── scripts/
+│   └── clean_bib.py          # Strip bib entries to only the fields the project uses
 ├── src/
 │   ├── bib_loader.py
 │   ├── arxiv_fetcher.py
@@ -95,16 +97,17 @@ Minimal working BibTeX entry:
 
 ```bibtex
 @article{attention2023,
-  title = {A Paper Title},
-  abstract = {This abstract is required for similarity matching.},
-  author = {Alice Example and Bob Example},
-  year = {2023}
+  title   = {A Paper Title},
+  abstract = {This abstract is required for similarity matching.}
 }
 ```
 
+The project only reads `title`, `abstract`, `author`, `doi`, `eprint`, `archiveprefix`, and `url` from bib entries.
+Fields like `year`, `journal`, `volume`, `pages`, `keywords`, `file`, `publisher`, and `urldate` are **ignored**.
+
 If an entry does not contain an `abstract`, it is skipped.
 
-> **Note for CI users:** `data/library.bib` is ignored by Git. In GitHub Actions, its content is restored from the `LIBRARY_BIB` repository secret.
+> **Note for CI users:** `data/library.bib` is ignored by Git. In GitHub Actions, its content is restored from the `LIBRARY_BIB_BASE64` repository secret (a base64-encoded copy of your bib file).
 > See [GitHub Actions Configuration](#3-github-actions-configuration-secret-setup) below to set it up.
 
 ### 2. Edit `config.yaml`
@@ -191,26 +194,30 @@ GitHub official references:
 
 Because `data/library.bib` is not tracked by Git (see `.gitignore`), CI workflows need its content provided via a **GitHub repository secret**.
 
-#### Step 1: Copy your library.bib content
+#### Step 1: Base64-encode your library.bib
 
 ```bash
-cat data/library.bib | pbcopy   # macOS
+base64 -w0 data/library.bib | pbcopy   # macOS
 # or
-cat data/library.bib            # Linux — then select and copy the output
+base64 -w0 data/library.bib            # Linux — then select and copy the output
 ```
+
+> The `-w0` flag produces a single-line base64 string without line breaks, which works reliably as a GitHub secret.
 
 #### Step 2: Add the secret
 
 1. Go to your GitHub repository page
 2. **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret**
-4. **Name**: `LIBRARY_BIB`
-5. **Secret**: Paste the full content of your `data/library.bib`
+4. **Name**: `LIBRARY_BIB_BASE64`
+5. **Secret**: Paste the base64 output from step 1
 6. Click **Add secret**
 
-That is all. When the workflows run, they will restore this secret into `data/library.bib` before executing the main program.
+That is all. When the workflows run, they will decode this secret into `data/library.bib` before executing the main program.
 
-> If `LIBRARY_BIB` is not set, the workflow falls back to `data/library.example.bib` so the pipeline does not break.
+> If `LIBRARY_BIB_BASE64` is not set, the workflow falls back to `data/library.example.bib` so the pipeline does not break.
+
+> **Note:** If you previously added `LIBRARY_BIB` (raw text), you can remove it — it is no longer used.
 
 ## First Manual Test
 
@@ -456,6 +463,17 @@ Usually fix this by:
 - reducing `max_candidates`
 - cleaning low-quality `.bib` entries
 - removing entries without meaningful abstracts
+
+### Optional: Clean your bib files
+
+The project provides a utility script to strip bib entries down to the fields it actually uses:
+
+```bash
+python scripts/clean_bib.py data/library.bib        # in-place
+python scripts/clean_bib.py data/library.bib -o clean.bib  # safe mode
+```
+
+This removes fields like `year`, `journal`, `keywords`, `file`, and `urldate` that the embedding and recommendation pipeline never looks at.
 
 ## Current Limitations
 
