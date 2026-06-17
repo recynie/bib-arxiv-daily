@@ -75,7 +75,7 @@ def build_report_html(
             links.append(f"<a href='{html.escape(paper.pdf_url)}'>PDF</a>")
         authors = ", ".join(html.escape(author) for author in paper.authors) or "Unknown authors"
         published = paper.published.strftime("%Y-%m-%d") if paper.published else ""
-        title_href = html.escape(paper.pdf_url) if paper.pdf_url else html.escape(paper.arxiv_url)
+        title_href = html.escape(paper.arxiv_url)
         blocks.append(
             "<div class='paper-card'>"
             "<div class='card-header'>"
