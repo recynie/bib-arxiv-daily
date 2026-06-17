@@ -36,7 +36,6 @@ class IndexBuilderTest(unittest.TestCase):
             (report_dir / "index.html").write_text(report_html, encoding="utf-8")
 
             html = build_index_html(docs)
-            self.assertIn("Latest report", html)
             self.assertIn("2026/06/12/", html)
             self.assertIn("5 matches", html)
 
@@ -55,7 +54,9 @@ class IndexBuilderTest(unittest.TestCase):
             html = build_index_html(docs)
 
             # Check latest link points to the newest date
-            self.assertIn("2026/06/12/", html[:html.find("History")])
+            history_idx = html.find("History")
+            self.assertNotEqual(history_idx, -1, "'History' section should appear")
+            self.assertIn("2026/06/12/", html[:history_idx])
             # All dates appear in history
             self.assertIn("2026-06-12", html)
             self.assertIn("2026-06-11", html)

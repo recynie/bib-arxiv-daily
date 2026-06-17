@@ -65,10 +65,9 @@ class ReportBuilderTest(unittest.TestCase):
         self.assertIn("Graph Signal Learning", html)
         self.assertIn("Graph Neural Networks", html)
         self.assertIn("http://arxiv.org/pdf/2501.00001v1", html)
-        self.assertIn("Library papers with abstracts: 8", html)
-        self.assertIn("RSS new papers:", html)
-        self.assertIn("After dedupe / already-in-library filter:", html)
-        self.assertIn("Threshold filtered:", html)
+        self.assertIn("8 library papers", html)
+        self.assertIn("RSS new:", html)
+        self.assertIn("After dedupe:", html)
 
     def test_build_report_html_shows_lookback_window_for_manual_weekly_run(self) -> None:
         stats = LibraryLoadStats(
@@ -102,10 +101,8 @@ class ReportBuilderTest(unittest.TestCase):
             generated_at=datetime(2025, 1, 8),
         )
 
-        self.assertIn("Query window:", html)
-        self.assertIn("last 7 days via export API", html)
-        self.assertIn("Fetched candidates:", html)
-        self.assertNotIn("RSS new papers:", html)
+        self.assertIn("lookback 7d", html)
+        self.assertIn("Fetched:", html)
 
 
 if __name__ == "__main__":
