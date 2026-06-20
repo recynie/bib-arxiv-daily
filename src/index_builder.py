@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from html import escape
+from html import escape, unescape
 from pathlib import Path
 import re
 from typing import Any
@@ -10,6 +10,11 @@ from typing import Any
 _DAILY_REPORT_TITLE_RE = re.compile(r"arXiv Daily (\d{4}-\d{2}-\d{2}) \((\d+) matches\)")
 _PAPERS_PER_DAY = 10
 _RECENT_DAYS = 5
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _plain_text_from_html(fragment: str) -> str:
+    return " ".join(unescape(_HTML_TAG_RE.sub("", fragment)).strip().split())
 
 
 def _discover_reports(docs_dir: Path) -> list[dict[str, str | int]]:
@@ -79,7 +84,7 @@ def _parse_papers(report_path: Path) -> list[dict[str, str]]:
             "title": match.group(3).strip(),
             "date": match.group(4).strip(),
             "meta": " ".join(match.group(5).strip().split()),
-            "abstract": " ".join(match.group(6).strip().split()),
+            "abstract": _plain_text_from_html(match.group(6)),
         })
 
     return papers

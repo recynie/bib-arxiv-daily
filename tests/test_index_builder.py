@@ -62,6 +62,28 @@ class IndexBuilderTest(unittest.TestCase):
             self.assertIn("2026-06-11", html)
             self.assertIn("2026-06-10", html)
 
+    def test_preview_abstract_strips_report_markup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            docs = Path(tmpdir) / "docs"
+            report_dir = docs / "2026" / "06" / "12"
+            report_dir.mkdir(parents=True)
+            (report_dir / "index.html").write_text(
+                "<html><body><h1>arXiv Daily 2026-06-12 (1 matches)</h1>"
+                "<div class='paper-card'><div class='card-header'>"
+                "<span class='score'>0.900</span>"
+                "<a class='paper-title' href='https://example.test/paper'>Paper</a>"
+                "<span class='date'>2026-06-12</span></div>"
+                "<div class='card-meta'>Author &middot; <a href='https://example.test/pdf'>PDF</a></div>"
+                "<div class='abstract'><span class='abs-text'>Autonomous Large Language Model (LLM) agents.</span></div>"
+                "</div></body></html>",
+                encoding="utf-8",
+            )
+
+            html = build_index_html(docs)
+
+            self.assertIn("Autonomous Large Language Model (LLM) agents.", html)
+            self.assertNotIn("&lt;span class=&#x27;abs-text&#x27;&gt;", html)
+
     def test_rejects_invalid_path_patterns(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             docs = Path(tmpdir) / "docs"
